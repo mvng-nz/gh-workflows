@@ -1,0 +1,66 @@
+name: Netlify Deploy
+
+on:
+  workflow_call:
+    inputs:
+      build-command:
+        description: Command to build the project
+        type: string
+        required: true
+      publish-dir:
+        description: Directory to publish (e.g. dist, build, out)
+        type: string
+        required: true
+      production:
+        description: Deploy as production (--prod)
+        type: boolean
+        default: false
+    secrets:
+      packages-token:
+        description: GitHub PAT with packages:read for @mvng-nz package installs
+        required: true
+      netlify-auth-token:
+        description: Netlify personal access token
+        required: true
+      netlify-site-id:
+        description: Netlify site ID to deploy to
+        required: true
+
+permissions:
+  contents: read
+  packages: read
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v7
+
+      - name: Setup Node
+        uses: actions/setup-node@v6
+        with:
+          node-version: '24'
+          cache: yarn
+          registry-url: https://npm.pkg.github.com
+          scope: '@mvng-nz'
+
+      - name: Enable Corepack
+        run: corepack enable
+
+      - name: Install dependencies
+        run: yarn install --immutable
+        env:
+          NODE_AUTH_TOKEN: ${{ secrets.packages-token }}
+
+      - name: Build
+        run: ${{ inputs.build-command }}
+
+      - name: Deploy to Netlify
+        run: |
+          npx netlify-cli deploy \
+            --dir="${{ inputs.publish-dir }}" \
+            ${{ inputs.production && '--prod' || '' }}
+        env:
+          NETLIFY_AUTH_TOKEN: ${{ secrets.netlify-auth-token }}
+          NETLIFY_SITE_ID: ${{ secrets.netlify-site-id }}

@@ -1,0 +1,55 @@
+name: Changesets Release
+
+on:
+  workflow_call:
+    inputs:
+      build-command:
+        description: Command to build packages before publishing
+        type: string
+        required: true
+    secrets:
+      packages-token:
+        description: GitHub PAT with packages:write for publishing to GitHub Packages
+        required: true
+
+permissions:
+  contents: write
+  packages: write
+
+jobs:
+  release:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout (full history)
+        uses: actions/checkout@v7
+        with:
+          fetch-depth: 0
+
+      - name: Setup Node
+        uses: actions/setup-node@v6
+        with:
+          node-version: '24'
+          cache: yarn
+          registry-url: https://npm.pkg.github.com
+          scope: '@mvng-nz'
+
+      - name: Enable Corepack
+        run: corepack enable
+
+      - name: Install dependencies
+        run: yarn install --immutable
+        env:
+          NODE_AUTH_TOKEN: ${{ secrets.packages-token }}
+
+      - name: Build
+        run: ${{ inputs.build-command }}
+
+      - name: Create Release Pull Request or Publish
+        id: changesets
+        uses: changesets/action@v1
+        with:
+          publish: yarn changeset publish
+        env:
+          GITHUB_TOKEN: ${{ github.token }}
+          NPM_TOKEN: ${{ secrets.packages-token }}
+          NODE_AUTH_TOKEN: ${{ secrets.packages-token }}

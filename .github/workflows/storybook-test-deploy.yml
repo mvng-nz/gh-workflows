@@ -1,0 +1,97 @@
+name: Storybook Test & Deploy
+
+on:
+  workflow_call:
+    secrets:
+      packages-token:
+        description: GitHub PAT with packages:read for @mvng-nz package installs
+        required: true
+      chromatic-project-token:
+        description: Chromatic project token for storybook deployment
+        required: true
+
+permissions:
+  contents: read
+  packages: read
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v7
+
+      - name: Setup Node
+        uses: actions/setup-node@v6
+        with:
+          node-version: '24'
+          cache: yarn
+          registry-url: https://npm.pkg.github.com
+          scope: '@mvng-nz'
+
+      - name: Enable Corepack
+        run: corepack enable
+
+      - name: Install dependencies
+        run: yarn install --immutable
+        env:
+          NODE_AUTH_TOKEN: ${{ secrets.packages-token }}
+
+      - name: Build Storybook
+        run: yarn turbo run build-storybook
+
+      - name: Install Playwright Chromium
+        run: npx playwright install --with-deps chromium
+
+      - name: Serve Storybook
+        run: |
+          npx http-server storybook-static --port 6006 --silent &
+          npx wait-on http://localhost:6006
+
+      - name: Run Storybook tests
+        run: npx test-storybook --url http://localhost:6006
+
+      - name: Upload test artifacts
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: storybook-test-results
+          path: |
+            test-results/
+            playwright-report/
+          retention-days: 14
+
+  deploy:
+    needs: test
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v7
+        with:
+          fetch-depth: 0
+
+      - name: Setup Node
+        uses: actions/setup-node@v6
+        with:
+          node-version: '24'
+          cache: yarn
+          registry-url: https://npm.pkg.github.com
+          scope: '@mvng-nz'
+
+      - name: Enable Corepack
+        run: corepack enable
+
+      - name: Install dependencies
+        run: yarn install --immutable
+        env:
+          NODE_AUTH_TOKEN: ${{ secrets.packages-token }}
+
+      - name: Build Storybook
+        run: yarn turbo run build-storybook
+
+      - name: Publish to Chromatic
+        uses: chromaui/action@v1
+        with:
+          projectToken: ${{ secrets.chromatic-project-token }}
+          storybookBuildDir: storybook-static
+          exitOnceUploaded: true
