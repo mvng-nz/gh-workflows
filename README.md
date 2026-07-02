@@ -1,17 +1,17 @@
 # mvng-nz/gh-workflows
 
-Reusable GitHub Actions workflows for all MVNG app and package repositories.
+Reusable GitHub Actions workflows for MVNG app and package repositories.
 
-## Critical lessons
+## Overview
 
-These workflows encode hard-won lessons from brand-hub debugging:
+Shared workflow definitions for CI, deployment, releases, and Storybook testing. All workflows use:
 
-- **PAT required for GitHub Packages**: Every workflow that installs `@mvng-nz` packages needs `NODE_AUTH_TOKEN` from a PAT secret. The auto `GITHUB_TOKEN` is repo-scoped and will 403 on cross-repo GitHub Packages downloads.
-- **Permissions block replaces defaults**: Callers must set `permissions: contents: read, packages: read` minimum. Adding a `permissions` block **replaces** the default permissions — if you omit `contents: read`, `actions/checkout` fails with "Repository not found".
-- **Always `yarn turbo run ...`**: Never use bare `turbo` — it is not on PATH. Use `yarn turbo run <task>`.
-- **Node 24, corepack, immutable**: All workflows use Node 24, `corepack enable`, and `yarn install --immutable`.
+- **Node 24** with Corepack and `yarn install --immutable`
+- **GitHub Packages auth** via PAT (`NODE_AUTH_TOKEN`) with `scope: '@mvng-nz'`
+- **Explicit `permissions` blocks** — callers must grant appropriate scopes
+- **Yarn Turbo** for monorepo task orchestration (`yarn turbo run <task>`)
 
-> **Note**: Private repos on GitHub Free cannot use organization-level secrets. `PACKAGES_TOKEN` must be added per-repo.
+> **Note**: `PACKAGES_TOKEN` must be added as a repository secret in each consuming repo. A GitHub PAT with `packages:read` is required for all workflows; `packages:write` is additionally required for publish workflows.
 
 ## Versioning
 
