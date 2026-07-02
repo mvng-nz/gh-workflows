@@ -37,6 +37,8 @@ git tag -f v1
 git push origin v1 --force
 ```
 
+> **Note**: This repo does not include a caller workflow. The reusable workflows require a `yarn.lock` and project dependencies to run, which don't exist in this infrastructure repo. Use the examples below as wiring templates in your consumer repos.
+
 ## Workflows
 
 ### node-ci.yml
