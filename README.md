@@ -270,6 +270,15 @@ permissions:
   packages: write
 ```
 
+For `changesets-release.yml`, also add `pull-requests: write`:
+
+```yaml
+permissions:
+  contents: write
+  packages: write
+  pull-requests: write
+```
+
 If a caller workflow mixes read-only and write jobs, use per-job `permissions` overrides:
 
 ```yaml
@@ -287,9 +296,23 @@ jobs:
     permissions:
       contents: write
       packages: write
+      pull-requests: write
     uses: mvng-nz/gh-workflows/.github/workflows/changesets-release.yml@v1
     with:
       build-command: yarn turbo run build
     secrets:
       packages-token: ${{ secrets.PACKAGES_TOKEN }}
 ```
+
+## Repository settings
+
+Consumers of `changesets-release.yml` must enable GitHub Actions to create pull requests:
+
+1. Go to **Settings → Actions → General**
+2. Scroll to **Workflow permissions**
+3. Check **"Allow GitHub Actions to create and approve pull requests"**
+4. Save
+
+This is required because `changesets/action` creates a "Version Packages" PR using `GITHUB_TOKEN`, which GitHub blocks by default. The caller workflow must also grant `pull-requests: write` in its `permissions` block — without it, the checkbox may not appear.
+
+> **Org restriction**: If the checkbox is missing, an org admin may have disabled it at **Organization Settings → Actions → General → Workflow permissions**.
