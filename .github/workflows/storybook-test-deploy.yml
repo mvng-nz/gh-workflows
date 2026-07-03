@@ -14,6 +14,10 @@ permissions:
   contents: read
   packages: read
 
+concurrency:
+  group: storybook-${{ github.ref }}
+  cancel-in-progress: true
+
 jobs:
   test:
     runs-on: ubuntu-latest
@@ -37,19 +41,8 @@ jobs:
         env:
           NODE_AUTH_TOKEN: ${{ secrets.packages-token }}
 
-      - name: Build Storybook
-        run: yarn turbo run build-storybook
-
-      - name: Install Playwright Chromium
-        run: npx playwright install --with-deps chromium
-
-      - name: Serve Storybook
-        run: |
-          npx http-server storybook-static --port 6006 --silent &
-          npx wait-on http://localhost:6006
-
       - name: Run Storybook tests
-        run: npx test-storybook --url http://localhost:6006
+        run: yarn turbo run test-storybook
 
       - name: Upload test artifacts
         if: always()
@@ -90,8 +83,6 @@ jobs:
         run: yarn turbo run build-storybook
 
       - name: Publish to Chromatic
-        uses: chromaui/action@v1
-        with:
-          projectToken: ${{ secrets.chromatic-project-token }}
-          storybookBuildDir: storybook-static
-          exitOnceUploaded: true
+        run: npx chromatic --storybook-build-dir storybook-static --exit-once-uploaded
+        env:
+          CHROMATIC_PROJECT_TOKEN: ${{ secrets.chromatic-project-token }}

@@ -156,7 +156,7 @@ jobs:
 
 ### storybook-test-deploy.yml
 
-Builds Storybook, runs component tests with Playwright, then deploys to Chromatic.
+Builds Storybook, runs component tests via `yarn turbo run test-storybook` (Storybook v10 turbo-compatible test runner), then deploys to Chromatic using the `npx chromatic` CLI. Includes workflow-level `concurrency` to cancel superseded runs.
 
 **Secrets**
 
