@@ -23,8 +23,13 @@
           default = pkgs.mkShell {
             buildInputs = with pkgs; [
               actionlint
+              lefthook
               nodejs_24
             ];
+
+            shellHook = ''
+              lefthook install
+            '';
           };
         }
       );

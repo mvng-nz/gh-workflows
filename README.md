@@ -39,6 +39,14 @@ git push origin v1 --force
 
 > **Note**: This repo does not include a caller workflow. The reusable workflows require a `yarn.lock` and project dependencies to run, which don't exist in this infrastructure repo. Use the examples below as wiring templates in your consumer repos.
 
+## Development
+
+This repo uses Nix for the developer environment. After entering the shell (`nix develop` or with `direnv`), [Lefthook](https://github.com/evilmartians/lefthook) is installed automatically and registers Git hooks from `lefthook.yml`.
+
+Pre-commit hooks run on staged files:
+
+- `actionlint` — lint GitHub Actions workflow files under `.github/workflows/`
+
 ## Workflows
 
 ### node-ci.yml
