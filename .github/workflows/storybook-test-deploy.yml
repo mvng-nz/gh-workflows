@@ -95,4 +95,4 @@ jobs:
 
       - name: Chromatic build URL
         if: always()
-        run: echo "Chromatic build: ${{ steps.chromatic.outputs.url }}"
+        run: 'echo "Chromatic build: ${{ steps.chromatic.outputs.url }}"'
