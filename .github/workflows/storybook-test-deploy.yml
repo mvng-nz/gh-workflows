@@ -86,6 +86,13 @@ jobs:
         run: yarn turbo run build-storybook
 
       - name: Publish to Chromatic
-        run: npx chromatic --storybook-build-dir storybook-static --exit-once-uploaded
-        env:
-          CHROMATIC_PROJECT_TOKEN: ${{ secrets.chromatic-project-token }}
+        id: chromatic
+        uses: chromaui/action@v17
+        with:
+          projectToken: ${{ secrets.chromatic-project-token }}
+          storybookBuildDir: storybook-static
+          exitOnceUploaded: true
+
+      - name: Chromatic build URL
+        if: always()
+        run: echo "Chromatic build: ${{ steps.chromatic.outputs.url }}"
