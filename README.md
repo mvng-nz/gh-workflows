@@ -186,6 +186,64 @@ jobs:
 
 ---
 
+### flutter-package-ci.yml
+
+Runs `flutter analyze`, `dart format --set-exit-if-changed`, and `flutter test` across a matrix of Flutter versions. Uses `subosito/flutter-action` to install Flutter.
+
+**Inputs**
+
+| Name               | Type   | Default                  | Description                             |
+| ------------------ | ------ | ------------------------ | --------------------------------------- |
+| `flutter-versions` | string | `'["3.41.0", "stable"]'` | JSON array of Flutter versions/channels |
+| `analyze-flags`    | string | `--fatal-infos`          | Flags passed to `flutter analyze`       |
+| `runs-on`          | string | `ubuntu-latest`          | Runner image to use                     |
+
+**Example**
+
+```yaml
+jobs:
+  ci:
+    uses: mvng-nz/gh-workflows/.github/workflows/flutter-package-ci.yml@v1
+```
+
+With custom inputs:
+
+```yaml
+jobs:
+  ci:
+    uses: mvng-nz/gh-workflows/.github/workflows/flutter-package-ci.yml@v1
+    with:
+      flutter-versions: '["stable", "beta"]'
+      analyze-flags: '--fatal-infos --fatal-warnings'
+      runs-on: macos-latest
+```
+
+---
+
+### flutter-release.yml
+
+Creates a GitHub Release from a git tag, extracting the release notes from the `## [version]` section of `CHANGELOG.md`. Uses the `gh` CLI (preinstalled on GitHub-hosted runners) — no third-party action dependency.
+
+**Example**
+
+```yaml
+on:
+  push:
+    tags:
+      - 'v*'
+
+permissions:
+  contents: write
+
+jobs:
+  release:
+    uses: mvng-nz/gh-workflows/.github/workflows/flutter-release.yml@v1
+```
+
+> The caller workflow must grant `permissions: contents: write` for release creation.
+
+---
+
 ### package-publish.yml
 
 Publishes a single package to GitHub Packages on release. Validates that the git tag matches `package.json` version before publishing.

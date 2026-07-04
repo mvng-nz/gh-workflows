@@ -1,0 +1,63 @@
+name: Flutter Package CI
+
+on:
+  workflow_call:
+    inputs:
+      flutter-versions:
+        description: JSON array of Flutter versions to test against.
+        type: string
+        default: '["3.41.0", "stable"]'
+      analyze-flags:
+        description: Flags passed to `flutter analyze`.
+        type: string
+        default: '--fatal-infos'
+      runs-on:
+        description: Runner image to use.
+        type: string
+        default: ubuntu-latest
+
+jobs:
+  analyze:
+    name: Analyze (${{ matrix.flutter-version }})
+    runs-on: ${{ inputs.runs-on }}
+    strategy:
+      fail-fast: false
+      matrix:
+        flutter-version: ${{ fromJSON(inputs.flutter-versions) }}
+    steps:
+      - uses: actions/checkout@v7
+      - uses: subosito/flutter-action@v2
+        with:
+          flutter-version: ${{ matrix.flutter-version }}
+      - run: flutter pub get
+      - run: flutter analyze ${{ inputs.analyze-flags }}
+
+  format:
+    name: Format (${{ matrix.flutter-version }})
+    runs-on: ${{ inputs.runs-on }}
+    strategy:
+      fail-fast: false
+      matrix:
+        flutter-version: ${{ fromJSON(inputs.flutter-versions) }}
+    steps:
+      - uses: actions/checkout@v7
+      - uses: subosito/flutter-action@v2
+        with:
+          flutter-version: ${{ matrix.flutter-version }}
+      - run: flutter pub get
+      - run: dart format --set-exit-if-changed .
+
+  test:
+    name: Test (${{ matrix.flutter-version }})
+    runs-on: ${{ inputs.runs-on }}
+    strategy:
+      fail-fast: false
+      matrix:
+        flutter-version: ${{ fromJSON(inputs.flutter-versions) }}
+    steps:
+      - uses: actions/checkout@v7
+      - uses: subosito/flutter-action@v2
+        with:
+          flutter-version: ${{ matrix.flutter-version }}
+      - run: flutter pub get
+      - run: flutter test
