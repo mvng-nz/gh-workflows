@@ -2,4 +2,4 @@ pre-commit:
   commands:
     actionlint:
       glob: '.github/workflows/*.{yml,yaml}'
-      run: nix develop -c actionlint {staged_files}
+      run: actionlint {staged_files}
