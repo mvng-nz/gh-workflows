@@ -192,11 +192,11 @@ Runs `flutter analyze`, `dart format --set-exit-if-changed`, and `flutter test` 
 
 **Inputs**
 
-| Name               | Type   | Default                  | Description                             |
-| ------------------ | ------ | ------------------------ | --------------------------------------- |
-| `flutter-versions` | string | `'["3.41.0", "stable"]'` | JSON array of Flutter versions/channels |
-| `analyze-flags`    | string | `--fatal-infos`          | Flags passed to `flutter analyze`       |
-| `runs-on`          | string | `ubuntu-latest`          | Runner image to use                     |
+| Name               | Type   | Default                                            | Description                                                                           |
+| ------------------ | ------ | -------------------------------------------------- | ------------------------------------------------------------------------------------- |
+| `flutter-versions` | string | `'[{"version": "3.41.0"}, {"channel": "stable"}]'` | JSON array of objects with `version` (e.g. `"3.41.0"`) or `channel` (e.g. `"stable"`) |
+| `analyze-flags`    | string | `--fatal-infos`                                    | Flags passed to `flutter analyze`                                                     |
+| `runs-on`          | string | `ubuntu-latest`                                    | Runner image to use                                                                   |
 
 **Example**
 
@@ -213,7 +213,7 @@ jobs:
   ci:
     uses: mvng-nz/gh-workflows/.github/workflows/flutter-package-ci.yml@v1
     with:
-      flutter-versions: '["stable", "beta"]'
+      flutter-versions: '[{"channel": "stable"}, {"channel": "beta"}]'
       analyze-flags: '--fatal-infos --fatal-warnings'
       runs-on: macos-latest
 ```
