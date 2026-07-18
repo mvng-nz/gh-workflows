@@ -7,6 +7,10 @@ on:
         description: Command to build packages before publishing
         type: string
         required: true
+      node-options:
+        description: NODE_OPTIONS passed to Node steps
+        type: string
+        default: '--max-old-space-size=4096'
     secrets:
       packages-token:
         description: GitHub PAT with read:packages for installing cross-repo org deps (optional)
@@ -20,6 +24,8 @@ permissions:
 jobs:
   release:
     runs-on: ubuntu-latest
+    env:
+      NODE_OPTIONS: ${{ inputs.node-options }}
     steps:
       - name: Checkout (full history)
         uses: actions/checkout@v7

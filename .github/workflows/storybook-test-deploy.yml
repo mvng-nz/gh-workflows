@@ -2,6 +2,11 @@ name: Storybook Test & Deploy
 
 on:
   workflow_call:
+    inputs:
+      node-options:
+        description: NODE_OPTIONS passed to Node steps
+        type: string
+        default: '--max-old-space-size=4096'
     secrets:
       packages-token:
         description: GitHub PAT with packages:read for @mvng-nz package installs
@@ -21,6 +26,8 @@ concurrency:
 jobs:
   test:
     runs-on: ubuntu-latest
+    env:
+      NODE_OPTIONS: ${{ inputs.node-options }}
     steps:
       - name: Checkout
         uses: actions/checkout@v7
@@ -60,6 +67,8 @@ jobs:
   deploy:
     needs: test
     runs-on: ubuntu-latest
+    env:
+      NODE_OPTIONS: ${{ inputs.node-options }}
     steps:
       - name: Checkout
         uses: actions/checkout@v7
