@@ -15,6 +15,10 @@ on:
         description: Whether to upload coverage artifacts
         type: boolean
         default: true
+      node-options:
+        description: NODE_OPTIONS passed to Node steps
+        type: string
+        default: '--max-old-space-size=4096'
     secrets:
       packages-token:
         description: GitHub PAT with packages:read for @mvng-nz package installs
@@ -27,6 +31,8 @@ permissions:
 jobs:
   ci:
     runs-on: ubuntu-latest
+    env:
+      NODE_OPTIONS: ${{ inputs.node-options }}
     steps:
       - name: Checkout
         uses: actions/checkout@v7
