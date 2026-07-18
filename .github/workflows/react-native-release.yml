@@ -1,4 +1,4 @@
-name: Flutter Package Release
+name: React Native Package Release
 
 on:
   workflow_call:

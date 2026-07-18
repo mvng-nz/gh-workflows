@@ -4,7 +4,7 @@ Reusable GitHub Actions workflows for MVNG app and package repositories.
 
 ## Overview
 
-Shared workflow definitions for CI, deployment, releases, and Storybook testing. All workflows use:
+Shared workflow definitions for Node and React Native CI, Cloudflare Pages and Netlify deployment, releases, and Storybook testing. All workflows use:
 
 - **Node 24** with Corepack and `yarn install --immutable`
 - **GitHub Packages auth** via PAT (`NODE_AUTH_TOKEN`) with `scope: '@mvng-nz'`
@@ -15,26 +15,36 @@ Shared workflow definitions for CI, deployment, releases, and Storybook testing.
 
 ## Versioning
 
-This repo uses tagged releases. Consumers should pin to a major version tag (e.g. `@v1`) to get patch and minor updates automatically without breaking changes. For full reproducibility, pin to a specific version (e.g. `@v1.0.0`).
+This repo uses tagged releases. Consumers should pin to a major version tag (e.g. `@v2`) to get patch and minor updates automatically without breaking changes. For full reproducibility, pin to a specific version (e.g. `@v2.0.0`).
 
 ```yaml
 # Recommended: major version pin
-uses: mvng-nz/gh-workflows/.github/workflows/node-ci.yml@v1
+uses: mvng-nz/gh-workflows/.github/workflows/node-ci.yml@v2
 
 # Fully pinned
-uses: mvng-nz/gh-workflows/.github/workflows/node-ci.yml@v1.0.0
+uses: mvng-nz/gh-workflows/.github/workflows/node-ci.yml@v2.0.0
 ```
 
 **Do not use `@main`** — any push to `main` immediately changes behavior for all consumers.
 
+### Migrating from Flutter workflows
+
+The Flutter-specific workflows (`flutter-package-ci.yml` and `flutter-release.yml`) have been removed from `v2` as MVNG moves to React Native. If you still need the Flutter workflows, pin your caller to the `v1` major tag:
+
+```yaml
+uses: mvng-nz/gh-workflows/.github/workflows/flutter-package-ci.yml@v1
+```
+
+When you are ready to move to the new major version, replace them with the React Native workflows below and update your `turbo.json` to include `lint`, `typecheck`, and `test` tasks as needed.
+
 ### Creating a new release
 
 ```bash
-git tag v1.0.0
-git push origin v1.0.0
+git tag v2.0.0
+git push origin v2.0.0
 # Update the moving major tag
-git tag -f v1
-git push origin v1 --force
+git tag -f v2
+git push origin v2 --force
 ```
 
 > **Note**: This repo does not include a caller workflow. The reusable workflows require a `yarn.lock` and project dependencies to run, which don't exist in this infrastructure repo. Use the examples below as wiring templates in your consumer repos.
@@ -58,6 +68,7 @@ Runs lint, build, and test, then uploads coverage artifacts.
 | Name              | Type    | Default                          | Description                          |
 | ----------------- | ------- | -------------------------------- | ------------------------------------ |
 | `node-version`    | string  | `'24'`                           | Node.js version                      |
+| `node-options`    | string  | `'--max-old-space-size=4096'`    | `NODE_OPTIONS` passed to Node steps  |
 | `run-command`     | string  | `yarn turbo run lint build test` | CI command to run                    |
 | `upload-coverage` | boolean | `true`                           | Whether to upload coverage artifacts |
 
@@ -72,7 +83,7 @@ Runs lint, build, and test, then uploads coverage artifacts.
 ```yaml
 jobs:
   ci:
-    uses: mvng-nz/gh-workflows/.github/workflows/node-ci.yml@v1
+    uses: mvng-nz/gh-workflows/.github/workflows/node-ci.yml@v2
     secrets:
       packages-token: ${{ secrets.PACKAGES_TOKEN }}
 ```
@@ -82,10 +93,58 @@ With custom inputs:
 ```yaml
 jobs:
   ci:
-    uses: mvng-nz/gh-workflows/.github/workflows/node-ci.yml@v1
+    uses: mvng-nz/gh-workflows/.github/workflows/node-ci.yml@v2
     with:
       node-version: '22'
       run-command: yarn turbo run lint test
+    secrets:
+      packages-token: ${{ secrets.PACKAGES_TOKEN }}
+```
+
+---
+
+### react-native-package-ci.yml
+
+Runs lint, typecheck, and test for React Native packages, then uploads coverage artifacts.
+
+The default `run-command` assumes your `turbo.json` defines `lint`, `typecheck`, and `test` tasks. If `typecheck` is missing or named differently, override `run-command`.
+
+**Inputs**
+
+| Name              | Type    | Default                                      | Description                          |
+| ----------------- | ------- | -------------------------------------------- | ------------------------------------ |
+| `node-version`    | string  | `'24'`                                       | Node.js version                      |
+| `node-options`    | string  | `'--max-old-space-size=4096'`                | `NODE_OPTIONS` passed to Node steps  |
+| `run-command`     | string  | `yarn turbo run lint typecheck test`         | CI command to run                    |
+| `upload-coverage` | boolean | `true`                                       | Whether to upload coverage artifacts |
+
+**Secrets**
+
+| Name             | Required | Description                     |
+| ---------------- | -------- | ------------------------------- |
+| `packages-token` | yes      | GitHub PAT with `packages:read` |
+
+**Example**
+
+```yaml
+jobs:
+  ci:
+    uses: mvng-nz/gh-workflows/.github/workflows/react-native-package-ci.yml@v2
+    secrets:
+      packages-token: ${{ secrets.PACKAGES_TOKEN }}
+```
+
+With custom inputs:
+
+```yaml
+jobs:
+  ci:
+    uses: mvng-nz/gh-workflows/.github/workflows/react-native-package-ci.yml@v2
+    with:
+      node-version: '24'
+      node-options: '--max-old-space-size=4096'
+      run-command: yarn turbo run lint test
+      upload-coverage: false
     secrets:
       packages-token: ${{ secrets.PACKAGES_TOKEN }}
 ```
@@ -117,7 +176,7 @@ Builds the project and deploys to Netlify.
 ```yaml
 jobs:
   deploy:
-    uses: mvng-nz/gh-workflows/.github/workflows/netlify-deploy.yml@v1
+    uses: mvng-nz/gh-workflows/.github/workflows/netlify-deploy.yml@v2
     with:
       build-command: yarn turbo run build
       publish-dir: dist
@@ -127,6 +186,56 @@ jobs:
       netlify-auth-token: ${{ secrets.NETLIFY_AUTH_TOKEN }}
       netlify-site-id: ${{ secrets.NETLIFY_SITE_ID }}
 ```
+
+---
+
+### cloudflare-pages-deploy.yml
+
+Builds the project and deploys to Cloudflare Pages using `cloudflare/wrangler-action`.
+
+Cloudflare Pages determines whether a deployment is production or preview by matching the deployment branch against the project's configured production branch. There is no `--prod` flag. Callers migrating from Netlify's `production: true` should pass `branch: main` (or their production branch) and ensure the Pages project is configured with the same production branch.
+
+**Inputs**
+
+| Name               | Type    | Required | Default | Description                                                    |
+| ------------------ | ------- | -------- | ------- | -------------------------------------------------------------- |
+| `build-command`    | string  | yes      | —       | Command to build the static site                               |
+| `publish-dir`      | string  | yes      | —       | Directory to publish (e.g. `dist`, `build`, `out`)           |
+| `project-name`     | string  | yes      | —       | Cloudflare Pages project name                                  |
+| `branch`           | string  | no       | `''`    | Branch to deploy (defaults to the current ref when omitted)    |
+| `node-version`     | string  | no       | `'24'`  | Node.js version                                                |
+| `wrangler-version` | string  | no       | `'4'`   | Wrangler version                                               |
+
+**Secrets**
+
+| Name                    | Required | Description                                              |
+| ----------------------- | -------- | -------------------------------------------------------- |
+| `packages-token`        | yes      | GitHub PAT with `packages:read`                          |
+| `cloudflare-api-token`  | yes      | Cloudflare API token with Cloudflare Pages edit access   |
+| `cloudflare-account-id` | yes      | Cloudflare account ID                                    |
+| `github-token`          | no       | GitHub token for GitHub Deployments integration          |
+
+**Example**
+
+```yaml
+jobs:
+  deploy:
+    permissions:
+      contents: read
+      packages: read
+    uses: mvng-nz/gh-workflows/.github/workflows/cloudflare-pages-deploy.yml@v2
+    with:
+      build-command: yarn turbo run build
+      publish-dir: dist
+      project-name: my-pages-project
+      branch: main
+    secrets:
+      packages-token: ${{ secrets.PACKAGES_TOKEN }}
+      cloudflare-api-token: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+      cloudflare-account-id: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+```
+
+> **Caller permissions**: `deployments: write` is only required when you pass the optional `github-token` secret to enable GitHub Deployments. Without `github-token`, the deployment still succeeds but no deployment status is created.
 
 ---
 
@@ -151,7 +260,7 @@ Creates a release pull request or publishes packages using changesets.
 ```yaml
 jobs:
   release:
-    uses: mvng-nz/gh-workflows/.github/workflows/changesets-release.yml@v1
+    uses: mvng-nz/gh-workflows/.github/workflows/changesets-release.yml@v2
     with:
       build-command: yarn turbo run build
     secrets:
@@ -178,7 +287,7 @@ Builds Storybook, runs component tests via `yarn turbo run test-storybook` (Stor
 ```yaml
 jobs:
   storybook:
-    uses: mvng-nz/gh-workflows/.github/workflows/storybook-test-deploy.yml@v1
+    uses: mvng-nz/gh-workflows/.github/workflows/storybook-test-deploy.yml@v2
     secrets:
       packages-token: ${{ secrets.PACKAGES_TOKEN }}
       chromatic-project-token: ${{ secrets.CHROMATIC_PROJECT_TOKEN }}
@@ -186,41 +295,7 @@ jobs:
 
 ---
 
-### flutter-package-ci.yml
-
-Runs `flutter analyze`, `dart format --set-exit-if-changed`, and `flutter test` across a matrix of Flutter versions. Uses `subosito/flutter-action` to install Flutter.
-
-**Inputs**
-
-| Name               | Type   | Default                                            | Description                                                                           |
-| ------------------ | ------ | -------------------------------------------------- | ------------------------------------------------------------------------------------- |
-| `flutter-versions` | string | `'[{"version": "3.41.0"}, {"channel": "stable"}]'` | JSON array of objects with `version` (e.g. `"3.41.0"`) or `channel` (e.g. `"stable"`) |
-| `analyze-flags`    | string | `--fatal-infos`                                    | Flags passed to `flutter analyze`                                                     |
-| `runs-on`          | string | `ubuntu-latest`                                    | Runner image to use                                                                   |
-
-**Example**
-
-```yaml
-jobs:
-  ci:
-    uses: mvng-nz/gh-workflows/.github/workflows/flutter-package-ci.yml@v1
-```
-
-With custom inputs:
-
-```yaml
-jobs:
-  ci:
-    uses: mvng-nz/gh-workflows/.github/workflows/flutter-package-ci.yml@v1
-    with:
-      flutter-versions: '[{"channel": "stable"}, {"channel": "beta"}]'
-      analyze-flags: '--fatal-infos --fatal-warnings'
-      runs-on: macos-latest
-```
-
----
-
-### flutter-release.yml
+### react-native-release.yml
 
 Creates a GitHub Release from a git tag, extracting the release notes from the `## [version]` section of `CHANGELOG.md`. Uses the `gh` CLI (preinstalled on GitHub-hosted runners) — no third-party action dependency.
 
@@ -237,7 +312,7 @@ permissions:
 
 jobs:
   release:
-    uses: mvng-nz/gh-workflows/.github/workflows/flutter-release.yml@v1
+    uses: mvng-nz/gh-workflows/.github/workflows/react-native-release.yml@v2
 ```
 
 > The caller workflow must grant `permissions: contents: write` for release creation.
@@ -267,7 +342,7 @@ permissions:
 
 jobs:
   publish:
-    uses: mvng-nz/gh-workflows/.github/workflows/package-publish.yml@v1
+    uses: mvng-nz/gh-workflows/.github/workflows/package-publish.yml@v2
     secrets:
       packages-token: ${{ secrets.PACKAGES_TOKEN }}
 ```
@@ -281,7 +356,7 @@ Simple config packages (e.g. `prettier-config`, `eslint-config`) that don't use 
 ```yaml
 jobs:
   ci:
-    uses: mvng-nz/gh-workflows/.github/workflows/node-ci.yml@v1
+    uses: mvng-nz/gh-workflows/.github/workflows/node-ci.yml@v2
     with:
       run-command: yarn lint
       upload-coverage: false
@@ -302,7 +377,7 @@ permissions:
 
 jobs:
   publish:
-    uses: mvng-nz/gh-workflows/.github/workflows/package-publish.yml@v1
+    uses: mvng-nz/gh-workflows/.github/workflows/package-publish.yml@v2
     secrets:
       packages-token: ${{ secrets.PACKAGES_TOKEN }}
 ```
@@ -316,6 +391,8 @@ All workflows require `PACKAGES_TOKEN` — a GitHub Personal Access Token with a
 | `PACKAGES_TOKEN`          | All workflows             |
 | `NETLIFY_AUTH_TOKEN`      | netlify-deploy.yml        |
 | `NETLIFY_SITE_ID`         | netlify-deploy.yml        |
+| `CLOUDFLARE_API_TOKEN`    | cloudflare-pages-deploy.yml |
+| `CLOUDFLARE_ACCOUNT_ID`   | cloudflare-pages-deploy.yml |
 | `CHROMATIC_PROJECT_TOKEN` | storybook-test-deploy.yml |
 
 ## Caller permissions
@@ -345,6 +422,15 @@ permissions:
   pull-requests: write
 ```
 
+For `cloudflare-pages-deploy.yml`, add `deployments: write` only when you pass the optional `github-token` secret to enable GitHub Deployments:
+
+```yaml
+permissions:
+  contents: read
+  packages: read
+  deployments: write
+```
+
 If a caller workflow mixes read-only and write jobs, use per-job `permissions` overrides:
 
 ```yaml
@@ -354,7 +440,7 @@ permissions:
 
 jobs:
   ci:
-    uses: mvng-nz/gh-workflows/.github/workflows/node-ci.yml@v1
+    uses: mvng-nz/gh-workflows/.github/workflows/node-ci.yml@v2
     secrets:
       packages-token: ${{ secrets.PACKAGES_TOKEN }}
 
@@ -363,7 +449,7 @@ jobs:
       contents: write
       packages: write
       pull-requests: write
-    uses: mvng-nz/gh-workflows/.github/workflows/changesets-release.yml@v1
+    uses: mvng-nz/gh-workflows/.github/workflows/changesets-release.yml@v2
     with:
       build-command: yarn turbo run build
     secrets:

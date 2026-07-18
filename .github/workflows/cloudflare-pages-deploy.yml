@@ -1,0 +1,82 @@
+name: Cloudflare Pages Deploy
+
+on:
+  workflow_call:
+    inputs:
+      build-command:
+        description: Command to build the static site
+        type: string
+        required: true
+      publish-dir:
+        description: Directory containing the built static site (e.g. dist, build, out)
+        type: string
+        required: true
+      project-name:
+        description: Cloudflare Pages project name
+        type: string
+        required: true
+      branch:
+        description: Branch to deploy (defaults to the current ref)
+        type: string
+        default: ''
+      node-version:
+        description: Node.js version to use
+        type: string
+        default: '24'
+      wrangler-version:
+        description: Wrangler version to use
+        type: string
+        default: '4'
+    secrets:
+      packages-token:
+        description: GitHub PAT with packages:read for @mvng-nz package installs
+        required: true
+      cloudflare-api-token:
+        description: Cloudflare API token with Cloudflare Pages edit permissions
+        required: true
+      cloudflare-account-id:
+        description: Cloudflare account ID
+        required: true
+      github-token:
+        description: GitHub token for GitHub Deployments integration (optional)
+        required: false
+
+permissions:
+  contents: read
+  packages: read
+  deployments: write
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v7
+
+      - name: Setup Node
+        uses: actions/setup-node@v6
+        with:
+          node-version: ${{ inputs.node-version }}
+          cache: yarn
+          registry-url: https://npm.pkg.github.com
+          scope: '@mvng-nz'
+
+      - name: Enable Corepack
+        run: corepack enable
+
+      - name: Install dependencies
+        run: yarn install --immutable
+        env:
+          NODE_AUTH_TOKEN: ${{ secrets.packages-token }}
+
+      - name: Build
+        run: ${{ inputs.build-command }}
+
+      - name: Deploy to Cloudflare Pages
+        uses: cloudflare/wrangler-action@v4
+        with:
+          apiToken: ${{ secrets.cloudflare-api-token }}
+          accountId: ${{ secrets.cloudflare-account-id }}
+          wranglerVersion: ${{ inputs.wrangler-version }}
+          command: pages deploy "${{ inputs.publish-dir }}" "--project-name=${{ inputs.project-name }}"${{ inputs.branch && format(' "--branch={0}"', inputs.branch) || '' }}
+          gitHubToken: ${{ secrets.github-token }}

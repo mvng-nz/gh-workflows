@@ -1,0 +1,67 @@
+name: React Native Package CI
+
+on:
+  workflow_call:
+    inputs:
+      node-version:
+        description: Node.js version to use
+        type: string
+        default: '24'
+      node-options:
+        description: NODE_OPTIONS passed to Node steps
+        type: string
+        default: '--max-old-space-size=4096'
+      run-command:
+        description: CI command to run (lint, typecheck, test, etc.)
+        type: string
+        default: yarn turbo run lint typecheck test
+      upload-coverage:
+        description: Whether to upload coverage artifacts
+        type: boolean
+        default: true
+    secrets:
+      packages-token:
+        description: GitHub PAT with packages:read for @mvng-nz package installs
+        required: true
+
+permissions:
+  contents: read
+  packages: read
+
+jobs:
+  ci:
+    runs-on: ubuntu-latest
+    env:
+      NODE_OPTIONS: ${{ inputs.node-options }}
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v7
+
+      - name: Setup Node
+        uses: actions/setup-node@v6
+        with:
+          node-version: ${{ inputs.node-version }}
+          cache: yarn
+          registry-url: https://npm.pkg.github.com
+          scope: '@mvng-nz'
+
+      - name: Enable Corepack
+        run: corepack enable
+
+      - name: Install dependencies
+        run: yarn install --immutable
+        env:
+          NODE_AUTH_TOKEN: ${{ secrets.packages-token }}
+
+      - name: Run CI command
+        run: ${{ inputs.run-command }}
+
+      - name: Upload coverage artifacts
+        if: always() && inputs.upload-coverage
+        uses: actions/upload-artifact@v4
+        with:
+          name: coverage
+          path: |
+            coverage/
+            packages/*/coverage/
+          retention-days: 14

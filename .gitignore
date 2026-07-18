@@ -1,1 +1,9 @@
 .direnv/
+
+.idea/
+.devin/
+.cursor/
+.vscode/
+
+docs/plans
+docs/brainstorms
