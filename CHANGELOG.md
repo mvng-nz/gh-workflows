@@ -7,7 +7,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
-## [2.0.0] - 2026-07-19
+## [1.4.0] - 2026-07-19
 
 ### Added
 
@@ -22,19 +22,19 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
-- Updated `README.md` for the `v2` major version: added React Native and Cloudflare Pages sections, refreshed the required-secrets table, added a migration note, and updated all caller examples to `@v2`.
+- Updated `README.md` for the `v1.4.0` release: added React Native and Cloudflare Pages sections, refreshed the required-secrets table, added a migration note, and updated caller examples to `@v1` and `v1.4.0`.
 - Updated `.gitignore` to ignore common editor directories and local documentation directories (`docs/plans`, `docs/brainstorms`).
 
 ### Migration
 
-This release is a breaking change for consumers of the Flutter workflows.
+Flutter workflows were removed because they are no longer used within MVNG.
 
-- To keep using the Flutter workflows, pin callers to the `v1` major tag:
+- If you still need the Flutter workflows, pin your caller to the last `v1.3.x` release that included them:
   ```yaml
-  uses: mvng-nz/gh-workflows/.github/workflows/flutter-package-ci.yml@v1
+  uses: mvng-nz/gh-workflows/.github/workflows/flutter-package-ci.yml@v1.3.1
   ```
-- To migrate to the new major version, replace Flutter callers with `react-native-package-ci.yml` and `react-native-release.yml`, and ensure your `turbo.json` defines `lint`, `typecheck`, and `test` tasks.
+- To use the new React Native workflows, replace Flutter callers with `react-native-package-ci.yml` and `react-native-release.yml`, and ensure your `turbo.json` defines `lint`, `typecheck`, and `test` tasks.
 - When migrating deployments from Netlify to Cloudflare Pages, pass `branch: <production-branch>` and configure the Pages project production branch instead of using `--prod`.
 
-[Unreleased]: https://github.com/mvng-nz/gh-workflows/compare/v2.0.0...HEAD
-[2.0.0]: https://github.com/mvng-nz/gh-workflows/compare/v1.3.1...v2.0.0
+[Unreleased]: https://github.com/mvng-nz/gh-workflows/compare/v1.4.0...HEAD
+[1.4.0]: https://github.com/mvng-nz/gh-workflows/compare/v1.3.1...v1.4.0

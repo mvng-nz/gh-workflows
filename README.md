@@ -15,36 +15,36 @@ Shared workflow definitions for Node and React Native CI, Cloudflare Pages and N
 
 ## Versioning
 
-This repo uses tagged releases. Consumers should pin to a major version tag (e.g. `@v2`) to get patch and minor updates automatically without breaking changes. For full reproducibility, pin to a specific version (e.g. `@v2.0.0`).
+This repo uses tagged releases. Consumers should pin to a major version tag (e.g. `@v1`) to get patch and minor updates automatically without breaking changes. For full reproducibility, pin to a specific version (e.g. `@v1.4.0`).
 
 ```yaml
 # Recommended: major version pin
-uses: mvng-nz/gh-workflows/.github/workflows/node-ci.yml@v2
+uses: mvng-nz/gh-workflows/.github/workflows/node-ci.yml@v1
 
 # Fully pinned
-uses: mvng-nz/gh-workflows/.github/workflows/node-ci.yml@v2.0.0
+uses: mvng-nz/gh-workflows/.github/workflows/node-ci.yml@v1.4.0
 ```
 
 **Do not use `@main`** — any push to `main` immediately changes behavior for all consumers.
 
 ### Migrating from Flutter workflows
 
-The Flutter-specific workflows (`flutter-package-ci.yml` and `flutter-release.yml`) have been removed from `v2` as MVNG moves to React Native. If you still need the Flutter workflows, pin your caller to the `v1` major tag:
+The Flutter-specific workflows (`flutter-package-ci.yml` and `flutter-release.yml`) were removed in `v1.4.0` as MVNG moves to React Native. If you still need the Flutter workflows, pin your caller to the last `v1.3.x` release that included them:
 
 ```yaml
-uses: mvng-nz/gh-workflows/.github/workflows/flutter-package-ci.yml@v1
+uses: mvng-nz/gh-workflows/.github/workflows/flutter-package-ci.yml@v1.3.1
 ```
 
-When you are ready to move to the new major version, replace them with the React Native workflows below and update your `turbo.json` to include `lint`, `typecheck`, and `test` tasks as needed.
+When you are ready to move to the latest release, replace them with the React Native workflows below and update your `turbo.json` to include `lint`, `typecheck`, and `test` tasks as needed.
 
 ### Creating a new release
 
 ```bash
-git tag v2.0.0
-git push origin v2.0.0
+git tag v1.4.0
+git push origin v1.4.0
 # Update the moving major tag
-git tag -f v2
-git push origin v2 --force
+git tag -f v1
+git push origin v1 --force
 ```
 
 > **Note**: This repo does not include a caller workflow. The reusable workflows require a `yarn.lock` and project dependencies to run, which don't exist in this infrastructure repo. Use the examples below as wiring templates in your consumer repos.
@@ -83,7 +83,7 @@ Runs lint, build, and test, then uploads coverage artifacts.
 ```yaml
 jobs:
   ci:
-    uses: mvng-nz/gh-workflows/.github/workflows/node-ci.yml@v2
+    uses: mvng-nz/gh-workflows/.github/workflows/node-ci.yml@v1
     secrets:
       packages-token: ${{ secrets.PACKAGES_TOKEN }}
 ```
@@ -93,7 +93,7 @@ With custom inputs:
 ```yaml
 jobs:
   ci:
-    uses: mvng-nz/gh-workflows/.github/workflows/node-ci.yml@v2
+    uses: mvng-nz/gh-workflows/.github/workflows/node-ci.yml@v1
     with:
       node-version: '22'
       run-command: yarn turbo run lint test
@@ -129,7 +129,7 @@ The default `run-command` assumes your `turbo.json` defines `lint`, `typecheck`,
 ```yaml
 jobs:
   ci:
-    uses: mvng-nz/gh-workflows/.github/workflows/react-native-package-ci.yml@v2
+    uses: mvng-nz/gh-workflows/.github/workflows/react-native-package-ci.yml@v1
     secrets:
       packages-token: ${{ secrets.PACKAGES_TOKEN }}
 ```
@@ -139,7 +139,7 @@ With custom inputs:
 ```yaml
 jobs:
   ci:
-    uses: mvng-nz/gh-workflows/.github/workflows/react-native-package-ci.yml@v2
+    uses: mvng-nz/gh-workflows/.github/workflows/react-native-package-ci.yml@v1
     with:
       node-version: '24'
       node-options: '--max-old-space-size=4096'
@@ -176,7 +176,7 @@ Builds the project and deploys to Netlify.
 ```yaml
 jobs:
   deploy:
-    uses: mvng-nz/gh-workflows/.github/workflows/netlify-deploy.yml@v2
+    uses: mvng-nz/gh-workflows/.github/workflows/netlify-deploy.yml@v1
     with:
       build-command: yarn turbo run build
       publish-dir: dist
@@ -223,7 +223,7 @@ jobs:
     permissions:
       contents: read
       packages: read
-    uses: mvng-nz/gh-workflows/.github/workflows/cloudflare-pages-deploy.yml@v2
+    uses: mvng-nz/gh-workflows/.github/workflows/cloudflare-pages-deploy.yml@v1
     with:
       build-command: yarn turbo run build
       publish-dir: dist
@@ -260,7 +260,7 @@ Creates a release pull request or publishes packages using changesets.
 ```yaml
 jobs:
   release:
-    uses: mvng-nz/gh-workflows/.github/workflows/changesets-release.yml@v2
+    uses: mvng-nz/gh-workflows/.github/workflows/changesets-release.yml@v1
     with:
       build-command: yarn turbo run build
     secrets:
@@ -287,7 +287,7 @@ Builds Storybook, runs component tests via `yarn turbo run test-storybook` (Stor
 ```yaml
 jobs:
   storybook:
-    uses: mvng-nz/gh-workflows/.github/workflows/storybook-test-deploy.yml@v2
+    uses: mvng-nz/gh-workflows/.github/workflows/storybook-test-deploy.yml@v1
     secrets:
       packages-token: ${{ secrets.PACKAGES_TOKEN }}
       chromatic-project-token: ${{ secrets.CHROMATIC_PROJECT_TOKEN }}
@@ -312,7 +312,7 @@ permissions:
 
 jobs:
   release:
-    uses: mvng-nz/gh-workflows/.github/workflows/react-native-release.yml@v2
+    uses: mvng-nz/gh-workflows/.github/workflows/react-native-release.yml@v1
 ```
 
 > The caller workflow must grant `permissions: contents: write` for release creation.
@@ -342,7 +342,7 @@ permissions:
 
 jobs:
   publish:
-    uses: mvng-nz/gh-workflows/.github/workflows/package-publish.yml@v2
+    uses: mvng-nz/gh-workflows/.github/workflows/package-publish.yml@v1
     secrets:
       packages-token: ${{ secrets.PACKAGES_TOKEN }}
 ```
@@ -356,7 +356,7 @@ Simple config packages (e.g. `prettier-config`, `eslint-config`) that don't use 
 ```yaml
 jobs:
   ci:
-    uses: mvng-nz/gh-workflows/.github/workflows/node-ci.yml@v2
+    uses: mvng-nz/gh-workflows/.github/workflows/node-ci.yml@v1
     with:
       run-command: yarn lint
       upload-coverage: false
@@ -377,7 +377,7 @@ permissions:
 
 jobs:
   publish:
-    uses: mvng-nz/gh-workflows/.github/workflows/package-publish.yml@v2
+    uses: mvng-nz/gh-workflows/.github/workflows/package-publish.yml@v1
     secrets:
       packages-token: ${{ secrets.PACKAGES_TOKEN }}
 ```
@@ -440,7 +440,7 @@ permissions:
 
 jobs:
   ci:
-    uses: mvng-nz/gh-workflows/.github/workflows/node-ci.yml@v2
+    uses: mvng-nz/gh-workflows/.github/workflows/node-ci.yml@v1
     secrets:
       packages-token: ${{ secrets.PACKAGES_TOKEN }}
 
@@ -449,7 +449,7 @@ jobs:
       contents: write
       packages: write
       pull-requests: write
-    uses: mvng-nz/gh-workflows/.github/workflows/changesets-release.yml@v2
+    uses: mvng-nz/gh-workflows/.github/workflows/changesets-release.yml@v1
     with:
       build-command: yarn turbo run build
     secrets:
