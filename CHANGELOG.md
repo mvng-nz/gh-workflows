@@ -7,6 +7,24 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- `playwright-e2e.yml` — reusable Playwright end-to-end test workflow with `.nvmrc` support, browser selection, and optional artifact upload.
+- `node-version-file` input and `.nvmrc` resolution across `node-ci.yml`, `react-native-package-ci.yml`, `cloudflare-pages-deploy.yml`, `storybook-test-deploy.yml`, and `changesets-release.yml`. Node version selection now prefers `.nvmrc`, falls back to an explicit `node-version`, then defaults to `24`.
+- `ref` input to `cloudflare-pages-deploy.yml` so callers can deploy a fixed ref; defaults to the triggering ref when omitted.
+- Modernized `changesets-release.yml`:
+  - Upgraded to `changesets/action@v2.0.0-next.3`.
+  - Exposed `version-script`, `publish-script`, `create-github-releases`, `push-git-tags`, `setup-git-user`, `github-token`, `node-version`, `node-version-file`, and `node-options` inputs.
+  - Replaced hardcoded `NPM_TOKEN` with an optional `npm-token` secret; omitting it enables tag-only private-package releases.
+
+### Changed
+
+- `node-ci.yml` and `react-native-package-ci.yml` default `node-version` input is now `''` so `.nvmrc` is respected when present.
+- `storybook-test-deploy.yml` now accepts `node-version` and `node-version-file` inputs instead of hardcoding Node 24.
+- Bumped `actions/setup-node` to `v7` and `actions/upload-artifact` to `v7` across all workflows.
+- Updated `.gitignore` to stop ignoring `docs/plans` and `docs/brainstorms` so planning documents can be tracked in the repo.
+- Updated `README.md` with new workflow sections, input tables, `.nvmrc` guidance, and caller examples.
+
 ## [1.4.0] - 2026-07-19
 
 ### Added

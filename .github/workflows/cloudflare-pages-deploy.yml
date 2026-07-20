@@ -19,10 +19,18 @@ on:
         description: Branch to deploy (defaults to the current ref)
         type: string
         default: ''
+      ref:
+        description: Git ref to checkout (defaults to the current ref)
+        type: string
+        default: ''
       node-version:
         description: Node.js version to use
         type: string
-        default: '24'
+        default: ''
+      node-version-file:
+        description: File to read Node.js version from (defaults to .nvmrc)
+        type: string
+        default: '.nvmrc'
       wrangler-version:
         description: Wrangler version to use
         type: string
@@ -52,11 +60,24 @@ jobs:
     steps:
       - name: Checkout
         uses: actions/checkout@v7
+        with:
+          ref: ${{ inputs.ref != '' && inputs.ref || github.ref }}
+
+      - name: Resolve Node version
+        id: resolve-node
+        run: |
+          if [ -n "${{ inputs.node-version }}" ]; then
+            echo "version=${{ inputs.node-version }}" >> "$GITHUB_OUTPUT"
+          elif [ -f "${{ inputs.node-version-file }}" ]; then
+            echo "version=$(cat ${{ inputs.node-version-file }})" >> "$GITHUB_OUTPUT"
+          else
+            echo "version=24" >> "$GITHUB_OUTPUT"
+          fi
 
       - name: Setup Node
-        uses: actions/setup-node@v6
+        uses: actions/setup-node@v7
         with:
-          node-version: ${{ inputs.node-version }}
+          node-version: ${{ steps.resolve-node.outputs.version }}
           cache: yarn
           registry-url: https://npm.pkg.github.com
           scope: '@mvng-nz'

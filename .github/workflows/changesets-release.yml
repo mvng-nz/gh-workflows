@@ -7,6 +7,38 @@ on:
         description: Command to build packages before publishing
         type: string
         required: true
+      version-script:
+        description: Script to run for versioning (passed to changesets/action)
+        type: string
+        default: ''
+      publish-script:
+        description: Script to run for publishing (passed to changesets/action)
+        type: string
+        default: 'yarn changeset publish'
+      create-github-releases:
+        description: Whether changesets/action should create GitHub releases
+        type: boolean
+        default: true
+      push-git-tags:
+        description: Whether changesets/action should push git tags
+        type: boolean
+        default: true
+      setup-git-user:
+        description: Whether changesets/action should configure the git user
+        type: boolean
+        default: true
+      github-token:
+        description: GitHub token for changesets/action (defaults to github.token)
+        type: string
+        default: ''
+      node-version:
+        description: Node.js version to use
+        type: string
+        default: ''
+      node-version-file:
+        description: File to read Node.js version from (defaults to .nvmrc)
+        type: string
+        default: '.nvmrc'
       node-options:
         description: NODE_OPTIONS passed to Node steps
         type: string
@@ -14,6 +46,9 @@ on:
     secrets:
       packages-token:
         description: GitHub PAT with read:packages for installing cross-repo org deps (optional)
+        required: false
+      npm-token:
+        description: npm token for changesets/action publishing (omit for tag-only private-package releases)
         required: false
 
 permissions:
@@ -32,13 +67,24 @@ jobs:
         with:
           fetch-depth: 0
 
+      - name: Resolve Node version
+        id: resolve-node
+        run: |
+          if [ -n "${{ inputs.node-version }}" ]; then
+            echo "version=${{ inputs.node-version }}" >> "$GITHUB_OUTPUT"
+          elif [ -f "${{ inputs.node-version-file }}" ]; then
+            echo "version=$(cat ${{ inputs.node-version-file }})" >> "$GITHUB_OUTPUT"
+          else
+            echo "version=24" >> "$GITHUB_OUTPUT"
+          fi
+
       - name: Setup Node
-        uses: actions/setup-node@v6
+        uses: actions/setup-node@v7
         with:
-          node-version: "24"
+          node-version: ${{ steps.resolve-node.outputs.version }}
           cache: yarn
           registry-url: https://npm.pkg.github.com
-          scope: "@mvng-nz"
+          scope: '@mvng-nz'
 
       - name: Enable Corepack
         run: corepack enable
@@ -53,10 +99,15 @@ jobs:
 
       - name: Create Release Pull Request or Publish
         id: changesets
-        uses: changesets/action@v1
+        uses: changesets/action@v2.0.0-next.3
         with:
-          publish: yarn changeset publish
+          version-script: ${{ inputs.version-script }}
+          publish-script: ${{ inputs.publish-script }}
+          setup-git-user: ${{ inputs.setup-git-user }}
+          create-github-releases: ${{ inputs.create-github-releases }}
+          push-git-tags: ${{ inputs.push-git-tags }}
+          github-token: ${{ inputs.github-token || github.token }}
         env:
-          GITHUB_TOKEN: ${{ github.token }}
-          NPM_TOKEN: ${{ github.token }}
-          NODE_AUTH_TOKEN: ${{ github.token }}
+          GITHUB_TOKEN: ${{ inputs.github-token || github.token }}
+          NPM_TOKEN: ${{ secrets.npm-token }}
+          NODE_AUTH_TOKEN: ${{ secrets.packages-token || github.token }}

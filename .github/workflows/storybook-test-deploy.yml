@@ -3,6 +3,14 @@ name: Storybook Test & Deploy
 on:
   workflow_call:
     inputs:
+      node-version:
+        description: Node.js version to use
+        type: string
+        default: ''
+      node-version-file:
+        description: File to read Node.js version from (defaults to .nvmrc)
+        type: string
+        default: '.nvmrc'
       node-options:
         description: NODE_OPTIONS passed to Node steps
         type: string
@@ -32,10 +40,21 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v7
 
+      - name: Resolve Node version
+        id: resolve-node
+        run: |
+          if [ -n "${{ inputs.node-version }}" ]; then
+            echo "version=${{ inputs.node-version }}" >> "$GITHUB_OUTPUT"
+          elif [ -f "${{ inputs.node-version-file }}" ]; then
+            echo "version=$(cat ${{ inputs.node-version-file }})" >> "$GITHUB_OUTPUT"
+          else
+            echo "version=24" >> "$GITHUB_OUTPUT"
+          fi
+
       - name: Setup Node
-        uses: actions/setup-node@v6
+        uses: actions/setup-node@v7
         with:
-          node-version: '24'
+          node-version: ${{ steps.resolve-node.outputs.version }}
           cache: yarn
           registry-url: https://npm.pkg.github.com
           scope: '@mvng-nz'
@@ -56,7 +75,7 @@ jobs:
 
       - name: Upload test artifacts
         if: always()
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: storybook-test-results
           path: |
@@ -75,10 +94,21 @@ jobs:
         with:
           fetch-depth: 0
 
+      - name: Resolve Node version
+        id: resolve-node
+        run: |
+          if [ -n "${{ inputs.node-version }}" ]; then
+            echo "version=${{ inputs.node-version }}" >> "$GITHUB_OUTPUT"
+          elif [ -f "${{ inputs.node-version-file }}" ]; then
+            echo "version=$(cat ${{ inputs.node-version-file }})" >> "$GITHUB_OUTPUT"
+          else
+            echo "version=24" >> "$GITHUB_OUTPUT"
+          fi
+
       - name: Setup Node
-        uses: actions/setup-node@v6
+        uses: actions/setup-node@v7
         with:
-          node-version: '24'
+          node-version: ${{ steps.resolve-node.outputs.version }}
           cache: yarn
           registry-url: https://npm.pkg.github.com
           scope: '@mvng-nz'

@@ -6,12 +6,14 @@ Reusable GitHub Actions workflows for MVNG app and package repositories.
 
 Shared workflow definitions for Node and React Native CI, Cloudflare Pages and Netlify deployment, releases, and Storybook testing. All workflows use:
 
-- **Node 24** with Corepack and `yarn install --immutable`
+- **Node version from `.nvmrc`** with a fallback to Node 24, Corepack, and `yarn install --immutable`
 - **GitHub Packages auth** via PAT (`NODE_AUTH_TOKEN`) with `scope: '@mvng-nz'`
 - **Explicit `permissions` blocks** — callers must grant appropriate scopes
 - **Yarn Turbo** for monorepo task orchestration (`yarn turbo run <task>`)
 
 > **Note**: `PACKAGES_TOKEN` must be added as a repository secret in each consuming repo. A GitHub PAT with `packages:read` is required for all workflows; `packages:write` is additionally required for publish workflows.
+
+> **`.nvmrc` guidance**: Consumers using `.nvmrc` should place it at the repository root with a single line containing the Node version (e.g. `24`). If `.nvmrc` is absent, workflows default to Node 24. Callers can still override the version explicitly by passing `node-version`.
 
 ## Versioning
 
@@ -65,12 +67,13 @@ Runs lint, build, and test, then uploads coverage artifacts.
 
 **Inputs**
 
-| Name              | Type    | Default                          | Description                          |
-| ----------------- | ------- | -------------------------------- | ------------------------------------ |
-| `node-version`    | string  | `'24'`                           | Node.js version                      |
-| `node-options`    | string  | `'--max-old-space-size=4096'`    | `NODE_OPTIONS` passed to Node steps  |
-| `run-command`     | string  | `yarn turbo run lint build test` | CI command to run                    |
-| `upload-coverage` | boolean | `true`                           | Whether to upload coverage artifacts |
+| Name               | Type    | Default                          | Description                                       |
+| ------------------ | ------- | -------------------------------- | ------------------------------------------------- |
+| `node-version`     | string  | `''`                             | Node.js version (overrides `.nvmrc`)            |
+| `node-version-file`| string  | `'.nvmrc'`                       | File to read Node.js version from               |
+| `node-options`     | string  | `'--max-old-space-size=4096'`    | `NODE_OPTIONS` passed to Node steps               |
+| `run-command`      | string  | `yarn turbo run lint build test` | CI command to run                                 |
+| `upload-coverage`  | boolean | `true`                           | Whether to upload coverage artifacts              |
 
 **Secrets**
 
@@ -111,12 +114,13 @@ The default `run-command` assumes your `turbo.json` defines `lint`, `typecheck`,
 
 **Inputs**
 
-| Name              | Type    | Default                                      | Description                          |
-| ----------------- | ------- | -------------------------------------------- | ------------------------------------ |
-| `node-version`    | string  | `'24'`                                       | Node.js version                      |
-| `node-options`    | string  | `'--max-old-space-size=4096'`                | `NODE_OPTIONS` passed to Node steps  |
-| `run-command`     | string  | `yarn turbo run lint typecheck test`         | CI command to run                    |
-| `upload-coverage` | boolean | `true`                                       | Whether to upload coverage artifacts |
+| Name               | Type    | Default                                      | Description                                       |
+| ------------------ | ------- | -------------------------------------------- | ------------------------------------------------- |
+| `node-version`     | string  | `''`                                         | Node.js version (overrides `.nvmrc`)            |
+| `node-version-file`| string  | `'.nvmrc'`                                   | File to read Node.js version from               |
+| `node-options`     | string  | `'--max-old-space-size=4096'`                | `NODE_OPTIONS` passed to Node steps               |
+| `run-command`      | string  | `yarn turbo run lint typecheck test`         | CI command to run                                 |
+| `upload-coverage`  | boolean | `true`                                       | Whether to upload coverage artifacts              |
 
 **Secrets**
 
@@ -197,14 +201,16 @@ Cloudflare Pages determines whether a deployment is production or preview by mat
 
 **Inputs**
 
-| Name               | Type    | Required | Default | Description                                                    |
-| ------------------ | ------- | -------- | ------- | -------------------------------------------------------------- |
-| `build-command`    | string  | yes      | —       | Command to build the static site                               |
-| `publish-dir`      | string  | yes      | —       | Directory to publish (e.g. `dist`, `build`, `out`)           |
-| `project-name`     | string  | yes      | —       | Cloudflare Pages project name                                  |
-| `branch`           | string  | no       | `''`    | Branch to deploy (defaults to the current ref when omitted)    |
-| `node-version`     | string  | no       | `'24'`  | Node.js version                                                |
-| `wrangler-version` | string  | no       | `'4'`   | Wrangler version                                               |
+| Name                | Type    | Required | Default    | Description                                                    |
+| ------------------- | ------- | -------- | ---------- | -------------------------------------------------------------- |
+| `build-command`     | string  | yes      | —          | Command to build the static site                               |
+| `publish-dir`       | string  | yes      | —          | Directory to publish (e.g. `dist`, `build`, `out`)           |
+| `project-name`      | string  | yes      | —          | Cloudflare Pages project name                                  |
+| `branch`            | string  | no       | `''`       | Branch to deploy (defaults to the current ref when omitted)    |
+| `ref`               | string  | no       | `''`       | Git ref to checkout (defaults to the current ref when omitted) |
+| `node-version`      | string  | no       | `''`       | Node.js version (overrides `.nvmrc`)                         |
+| `node-version-file` | string  | no       | `'.nvmrc'` | File to read Node.js version from                            |
+| `wrangler-version`  | string  | no       | `'4'`      | Wrangler version                                               |
 
 **Secrets**
 
@@ -241,19 +247,29 @@ jobs:
 
 ### changesets-release.yml
 
-Creates a release pull request or publishes packages using changesets.
+Creates a release pull request or publishes packages using changesets. Supports private-package tag-only releases when no `npm-token` is provided.
 
 **Inputs**
 
-| Name            | Type   | Required | Description                                 |
-| --------------- | ------ | -------- | ------------------------------------------- |
-| `build-command` | string | yes      | Command to build packages before publishing |
+| Name                     | Type    | Required | Default                       | Description                                                              |
+| ------------------------ | ------- | -------- | ----------------------------- | ------------------------------------------------------------------------ |
+| `build-command`          | string  | yes      | —                             | Command to build packages before publishing                              |
+| `version-script`         | string  | no       | `''`                          | Script passed to `changesets/action` for versioning                        |
+| `publish-script`         | string  | no       | `yarn changeset publish`      | Script passed to `changesets/action` for publishing                      |
+| `create-github-releases` | boolean | no       | `true`                        | Whether `changesets/action` should create GitHub releases                |
+| `push-git-tags`          | boolean | no       | `true`                        | Whether `changesets/action` should push git tags                         |
+| `setup-git-user`         | boolean | no       | `true`                        | Whether `changesets/action` should configure the git user                |
+| `github-token`           | string  | no       | `''` (falls back to `${{ github.token }}`) | GitHub token for `changesets/action`                                       |
+| `node-version`           | string  | no       | `''`                          | Node.js version (overrides `.nvmrc`)                                     |
+| `node-version-file`      | string  | no       | `'.nvmrc'`                    | File to read Node.js version from                                        |
+| `node-options`           | string  | no       | `'--max-old-space-size=4096'` | `NODE_OPTIONS` passed to Node steps                                        |
 
 **Secrets**
 
-| Name             | Required | Description                                     |
-| ---------------- | -------- | ----------------------------------------------- |
-| `packages-token` | yes      | GitHub PAT with `packages:write` for publishing |
+| Name             | Required | Description                                                              |
+| ---------------- | -------- | ------------------------------------------------------------------------ |
+| `packages-token` | no       | GitHub PAT with `read:packages` for installing cross-repo org deps       |
+| `npm-token`      | no       | npm token for `changesets/action` publishing (omit for tag-only releases) |
 
 **Example**
 
@@ -267,13 +283,37 @@ jobs:
       packages-token: ${{ secrets.PACKAGES_TOKEN }}
 ```
 
-> The caller workflow must grant `permissions: contents: write, packages: write` for version commits and publishing.
+Private-package-only release (no npm publishing):
+
+```yaml
+jobs:
+  release:
+    permissions:
+      contents: write
+      packages: write
+      pull-requests: write
+    uses: mvng-nz/gh-workflows/.github/workflows/changesets-release.yml@v1
+    with:
+      build-command: yarn turbo run build
+    secrets:
+      packages-token: ${{ secrets.PACKAGES_TOKEN }}
+```
+
+> The caller workflow must grant `permissions: contents: write` for version commits, `packages: write` when publishing packages, and `pull-requests: write` for the release PR. Omit `npm-token` to skip `.npmrc` token injection and produce git tags/GitHub releases without npm publishing.
 
 ---
 
 ### storybook-test-deploy.yml
 
 Builds Storybook, runs component tests via `yarn turbo run test-storybook` (Storybook v10 turbo-compatible test runner), then deploys to Chromatic using the official [`chromaui/action`](https://github.com/chromaui/action) GitHub Action. The Action forwards the `pull_request`/`push` event context to Chromatic, fixing branch detection and PR status checks. Includes workflow-level `concurrency` to cancel superseded runs.
+
+**Inputs**
+
+| Name                | Type   | Default                       | Description                                    |
+| ------------------- | ------ | ----------------------------- | ---------------------------------------------- |
+| `node-version`      | string | `''`                          | Node.js version (overrides `.nvmrc`)          |
+| `node-version-file` | string | `'.nvmrc'`                    | File to read Node.js version from             |
+| `node-options`      | string | `'--max-old-space-size=4096'` | `NODE_OPTIONS` passed to Node steps           |
 
 **Secrets**
 
@@ -291,6 +331,48 @@ jobs:
     secrets:
       packages-token: ${{ secrets.PACKAGES_TOKEN }}
       chromatic-project-token: ${{ secrets.CHROMATIC_PROJECT_TOKEN }}
+```
+
+---
+
+### playwright-e2e.yml
+
+Runs Playwright end-to-end tests. Installs the requested browser, runs the caller-supplied test command, and optionally uploads the report artifacts.
+
+**Inputs**
+
+| Name               | Type    | Default                    | Description                                       |
+| ------------------ | ------- | -------------------------- | ------------------------------------------------- |
+| `run-command`      | string  | —                          | Command to run Playwright E2E tests (required)    |
+| `working-directory`| string  | `.`                        | Working directory for install/test steps          |
+| `browser`          | string  | `chromium`                 | Playwright browser to install                     |
+| `node-version`     | string  | `''`                       | Node.js version (overrides `.nvmrc`)            |
+| `node-version-file`| string  | `'.nvmrc'`                 | File to read Node.js version from               |
+| `node-options`     | string  | `'--max-old-space-size=4096'` | `NODE_OPTIONS` passed to Node steps              |
+| `upload-artifacts` | boolean | `false`                    | Whether to upload test artifacts                  |
+| `artifact-name`    | string  | `playwright-report`        | Name of the uploaded artifact                     |
+| `artifact-path`    | string  | `playwright-report/`       | Path of the artifacts to upload                   |
+| `retention-days`   | number  | `14`                       | Artifact retention in days                        |
+
+**Secrets**
+
+| Name             | Required | Description                     |
+| ---------------- | -------- | ------------------------------- |
+| `packages-token` | yes      | GitHub PAT with `packages:read` |
+
+**Example**
+
+```yaml
+jobs:
+  e2e:
+    uses: mvng-nz/gh-workflows/.github/workflows/playwright-e2e.yml@v1
+    with:
+      run-command: yarn workspace web test:e2e
+      working-directory: apps/web
+      browser: chromium
+      upload-artifacts: true
+    secrets:
+      packages-token: ${{ secrets.PACKAGES_TOKEN }}
 ```
 
 ---
@@ -386,14 +468,15 @@ jobs:
 
 All workflows require `PACKAGES_TOKEN` — a GitHub Personal Access Token with at least `packages:read` (and `packages:write` for the changesets-release and package-publish workflows). Add it as a repository secret in each consuming repo.
 
-| Secret                    | Used by                   |
-| ------------------------- | ------------------------- |
-| `PACKAGES_TOKEN`          | All workflows             |
-| `NETLIFY_AUTH_TOKEN`      | netlify-deploy.yml        |
-| `NETLIFY_SITE_ID`         | netlify-deploy.yml        |
-| `CLOUDFLARE_API_TOKEN`    | cloudflare-pages-deploy.yml |
-| `CLOUDFLARE_ACCOUNT_ID`   | cloudflare-pages-deploy.yml |
-| `CHROMATIC_PROJECT_TOKEN` | storybook-test-deploy.yml |
+| Secret                    | Used by                                  |
+| ------------------------- | ---------------------------------------- |
+| `PACKAGES_TOKEN`          | All workflows                            |
+| `NPM_TOKEN` (optional)    | changesets-release.yml as `npm-token`    |
+| `NETLIFY_AUTH_TOKEN`      | netlify-deploy.yml                       |
+| `NETLIFY_SITE_ID`         | netlify-deploy.yml                       |
+| `CLOUDFLARE_API_TOKEN`    | cloudflare-pages-deploy.yml              |
+| `CLOUDFLARE_ACCOUNT_ID`   | cloudflare-pages-deploy.yml              |
+| `CHROMATIC_PROJECT_TOKEN` | storybook-test-deploy.yml                |
 
 ## Caller permissions
 

@@ -1,8 +1,20 @@
-name: Node CI
+name: Playwright E2E
 
 on:
   workflow_call:
     inputs:
+      run-command:
+        description: Command to run Playwright E2E tests
+        type: string
+        required: true
+      working-directory:
+        description: Working directory for test steps
+        type: string
+        default: '.'
+      browser:
+        description: Playwright browser to install
+        type: string
+        default: 'chromium'
       node-version:
         description: Node.js version to use
         type: string
@@ -11,18 +23,26 @@ on:
         description: File to read Node.js version from (defaults to .nvmrc)
         type: string
         default: '.nvmrc'
-      run-command:
-        description: Command to run for CI (lint, build, test, etc.)
-        type: string
-        default: yarn turbo run lint build test
-      upload-coverage:
-        description: Whether to upload coverage artifacts
-        type: boolean
-        default: true
       node-options:
         description: NODE_OPTIONS passed to Node steps
         type: string
         default: '--max-old-space-size=4096'
+      upload-artifacts:
+        description: Whether to upload test artifacts
+        type: boolean
+        default: false
+      artifact-name:
+        description: Name of the uploaded artifact
+        type: string
+        default: 'playwright-report'
+      artifact-path:
+        description: Path to the artifacts to upload
+        type: string
+        default: 'playwright-report/'
+      retention-days:
+        description: Artifact retention in days
+        type: number
+        default: 14
     secrets:
       packages-token:
         description: GitHub PAT with packages:read for @mvng-nz package installs
@@ -33,7 +53,7 @@ permissions:
   packages: read
 
 jobs:
-  ci:
+  e2e:
     runs-on: ubuntu-latest
     env:
       NODE_OPTIONS: ${{ inputs.node-options }}
@@ -62,21 +82,26 @@ jobs:
 
       - name: Enable Corepack
         run: corepack enable
+        working-directory: ${{ inputs.working-directory }}
 
       - name: Install dependencies
         run: yarn install --immutable
+        working-directory: ${{ inputs.working-directory }}
         env:
           NODE_AUTH_TOKEN: ${{ secrets.packages-token }}
 
-      - name: Run CI command
-        run: ${{ inputs.run-command }}
+      - name: Install Playwright browser
+        run: npx playwright install --with-deps ${{ inputs.browser }}
+        working-directory: ${{ inputs.working-directory }}
 
-      - name: Upload coverage artifacts
-        if: always() && inputs.upload-coverage == true
+      - name: Run E2E command
+        run: ${{ inputs.run-command }}
+        working-directory: ${{ inputs.working-directory }}
+
+      - name: Upload artifacts
+        if: always() && inputs.upload-artifacts == true
         uses: actions/upload-artifact@v7
         with:
-          name: coverage
-          path: |
-            coverage/
-            packages/*/coverage/
-          retention-days: 14
+          name: ${{ inputs.artifact-name }}
+          path: ${{ inputs.artifact-path }}
+          retention-days: ${{ inputs.retention-days }}
