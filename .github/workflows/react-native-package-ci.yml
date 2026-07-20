@@ -7,10 +7,6 @@ on:
         description: Node.js version to use
         type: string
         default: ''
-      node-version-file:
-        description: File to read Node.js version from (defaults to .nvmrc)
-        type: string
-        default: '.nvmrc'
       node-options:
         description: NODE_OPTIONS passed to Node steps
         type: string
@@ -23,6 +19,10 @@ on:
         description: Whether to upload coverage artifacts
         type: boolean
         default: true
+      node-version-file:
+        description: File to read Node.js version from (defaults to .nvmrc)
+        type: string
+        default: '.nvmrc'
     secrets:
       packages-token:
         description: GitHub PAT with packages:read for @mvng-nz package installs
@@ -34,49 +34,12 @@ permissions:
 
 jobs:
   ci:
-    runs-on: ubuntu-latest
-    env:
-      NODE_OPTIONS: ${{ inputs.node-options }}
-    steps:
-      - name: Checkout
-        uses: actions/checkout@v7
-
-      - name: Resolve Node version
-        id: resolve-node
-        run: |
-          if [ -n "${{ inputs.node-version }}" ]; then
-            echo "version=${{ inputs.node-version }}" >> "$GITHUB_OUTPUT"
-          elif [ -f "${{ inputs.node-version-file }}" ]; then
-            echo "version=$(cat ${{ inputs.node-version-file }})" >> "$GITHUB_OUTPUT"
-          else
-            echo "version=24" >> "$GITHUB_OUTPUT"
-          fi
-
-      - name: Setup Node
-        uses: actions/setup-node@v7
-        with:
-          node-version: ${{ steps.resolve-node.outputs.version }}
-          cache: yarn
-          registry-url: https://npm.pkg.github.com
-          scope: '@mvng-nz'
-
-      - name: Enable Corepack
-        run: corepack enable
-
-      - name: Install dependencies
-        run: yarn install --immutable
-        env:
-          NODE_AUTH_TOKEN: ${{ secrets.packages-token }}
-
-      - name: Run CI command
-        run: ${{ inputs.run-command }}
-
-      - name: Upload coverage artifacts
-        if: always() && inputs.upload-coverage == true
-        uses: actions/upload-artifact@v7
-        with:
-          name: coverage
-          path: |
-            coverage/
-            packages/*/coverage/
-          retention-days: 14
+    uses: ./.github/workflows/node-runner.yml
+    with:
+      node-version: ${{ inputs.node-version }}
+      node-version-file: ${{ inputs.node-version-file }}
+      node-options: ${{ inputs.node-options }}
+      run-command: ${{ inputs.run-command }}
+      upload-coverage: ${{ inputs.upload-coverage }}
+    secrets:
+      packages-token: ${{ secrets.packages-token }}

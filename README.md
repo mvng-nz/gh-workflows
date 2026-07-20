@@ -61,19 +61,71 @@ Pre-commit hooks run on staged files:
 
 ## Workflows
 
-### node-ci.yml
+### node-runner.yml
 
-Runs lint, build, and test, then uploads coverage artifacts.
+Canonical reusable Node CI workflow. Runs a configurable command after checkout, Node setup, Corepack enable, and `yarn install --immutable`, then optionally uploads coverage artifacts.
+
+> **Note:** `node-ci.yml` and `react-native-package-ci.yml` are now legacy shims that delegate to this workflow. New callers should use `node-runner.yml` directly.
 
 **Inputs**
 
-| Name               | Type    | Default                          | Description                                       |
-| ------------------ | ------- | -------------------------------- | ------------------------------------------------- |
-| `node-version`     | string  | `''`                             | Node.js version (overrides `.nvmrc`)            |
-| `node-version-file`| string  | `'.nvmrc'`                       | File to read Node.js version from               |
-| `node-options`     | string  | `'--max-old-space-size=4096'`    | `NODE_OPTIONS` passed to Node steps               |
-| `run-command`      | string  | `yarn turbo run lint build test` | CI command to run                                 |
-| `upload-coverage`  | boolean | `true`                           | Whether to upload coverage artifacts              |
+| Name                | Type    | Default                          | Description                                       |
+| ------------------- | ------- | -------------------------------- | ------------------------------------------------- |
+| `node-version`      | string  | `''`                             | Node.js version (overrides `.nvmrc`)            |
+| `node-version-file` | string  | `'.nvmrc'`                       | File to read Node.js version from               |
+| `node-options`      | string  | `'--max-old-space-size=4096'`    | `NODE_OPTIONS` passed to Node steps               |
+| `run-command`       | string  | —                                | CI command to run (required)                    |
+| `upload-coverage`   | boolean | `true`                           | Whether to upload coverage artifacts              |
+
+**Secrets**
+
+| Name             | Required | Description                     |
+| ---------------- | -------- | ------------------------------- |
+| `packages-token` | yes      | GitHub PAT with `packages:read` |
+
+**Example**
+
+```yaml
+jobs:
+  ci:
+    uses: mvng-nz/gh-workflows/.github/workflows/node-runner.yml@v1
+    with:
+      run-command: yarn turbo run lint build test
+    secrets:
+      packages-token: ${{ secrets.PACKAGES_TOKEN }}
+```
+
+With custom inputs:
+
+```yaml
+jobs:
+  ci:
+    uses: mvng-nz/gh-workflows/.github/workflows/node-runner.yml@v1
+    with:
+      node-version: '22'
+      run-command: yarn turbo run lint test
+      upload-coverage: false
+    secrets:
+      packages-token: ${{ secrets.PACKAGES_TOKEN }}
+```
+
+---
+
+### node-ci.yml
+
+> **Legacy shim:** This workflow delegates to `node-runner.yml` and is preserved for backward compatibility. Existing `@v1` callers continue to work unchanged. New callers should use `node-runner.yml` directly.
+
+Runs lint, build, and test by default, then uploads coverage artifacts.
+
+**Inputs**
+
+| Name                | Type    | Default                          | Description                                       |
+| ------------------- | ------- | -------------------------------- | ------------------------------------------------- |
+| `node-version`      | string  | `''`                             | Node.js version (overrides `.nvmrc`)            |
+| `run-command`       | string  | `yarn turbo run lint build test` | CI command to run                                 |
+| `upload-coverage`   | boolean | `true`                           | Whether to upload coverage artifacts              |
+| `node-options`      | string  | `'--max-old-space-size=4096'`    | `NODE_OPTIONS` passed to Node steps               |
+| `node-version-file` | string  | `'.nvmrc'`                       | File to read Node.js version from               |
 
 **Secrets**
 
@@ -108,19 +160,21 @@ jobs:
 
 ### react-native-package-ci.yml
 
-Runs lint, typecheck, and test for React Native packages, then uploads coverage artifacts.
+> **Legacy shim:** This workflow delegates to `node-runner.yml` and is preserved for backward compatibility. Existing `@v1` callers continue to work unchanged. New callers should use `node-runner.yml` directly.
+
+Runs lint, typecheck, and test for React Native packages by default, then uploads coverage artifacts.
 
 The default `run-command` assumes your `turbo.json` defines `lint`, `typecheck`, and `test` tasks. If `typecheck` is missing or named differently, override `run-command`.
 
 **Inputs**
 
-| Name               | Type    | Default                                      | Description                                       |
-| ------------------ | ------- | -------------------------------------------- | ------------------------------------------------- |
-| `node-version`     | string  | `''`                                         | Node.js version (overrides `.nvmrc`)            |
-| `node-version-file`| string  | `'.nvmrc'`                                   | File to read Node.js version from               |
-| `node-options`     | string  | `'--max-old-space-size=4096'`                | `NODE_OPTIONS` passed to Node steps               |
-| `run-command`      | string  | `yarn turbo run lint typecheck test`         | CI command to run                                 |
-| `upload-coverage`  | boolean | `true`                                       | Whether to upload coverage artifacts              |
+| Name                | Type    | Default                                      | Description                                       |
+| ------------------- | ------- | -------------------------------------------- | ------------------------------------------------- |
+| `node-version`      | string  | `''`                                         | Node.js version (overrides `.nvmrc`)            |
+| `node-options`      | string  | `'--max-old-space-size=4096'`                | `NODE_OPTIONS` passed to Node steps               |
+| `run-command`       | string  | `yarn turbo run lint typecheck test`         | CI command to run                                 |
+| `upload-coverage`   | boolean | `true`                                       | Whether to upload coverage artifacts              |
+| `node-version-file` | string  | `'.nvmrc'`                                   | File to read Node.js version from               |
 
 **Secrets**
 
