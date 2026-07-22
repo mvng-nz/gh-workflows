@@ -46,4 +46,7 @@ jobs:
       - name: Publish package
         run: yarn npm publish
         env:
-          NODE_AUTH_TOKEN: ${{ secrets.packages-token }}
+          # Publishing needs write:packages. github.token has it (see the
+          # packages:write permission above); packages-token is often a
+          # read-only install token and 403s on publish, so use github.token.
+          NODE_AUTH_TOKEN: ${{ github.token }}
