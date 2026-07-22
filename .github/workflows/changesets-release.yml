@@ -12,15 +12,21 @@ on:
         type: string
         default: ''
       publish-script:
-        description: Script to run for publishing (passed to changesets/action)
+        description: >
+          Command that publishes packages, run in a shell AFTER the Version PR
+          merges (when no changesets remain). Runs via a shell step — NOT
+          changesets/action's publish — so `yarn npm publish` rewrites
+          `workspace:*` ranges at pack time. Default publishes every public
+          workspace with Yarn; private-only repos can leave the default (it
+          publishes nothing) and rely on the tag/release steps.
         type: string
-        default: 'yarn changeset publish'
+        default: 'yarn workspaces foreach --all --no-private npm publish --tolerate-republish'
       create-github-releases:
-        description: Whether changesets/action should create GitHub releases
+        description: Whether to create GitHub releases for the tags cut this run
         type: boolean
         default: true
       push-git-tags:
-        description: Whether changesets/action should push git tags
+        description: Whether to create and push git tags (via `yarn changeset tag`)
         type: boolean
         default: true
       setup-git-user:
@@ -48,7 +54,7 @@ on:
         description: GitHub PAT with read:packages for installing cross-repo org deps (optional)
         required: false
       npm-token:
-        description: npm token for changesets/action publishing (omit for tag-only private-package releases)
+        description: npm token for publishing to npmjs.com (omit for GitHub Packages / tag-only)
         required: false
 
 permissions:
@@ -97,17 +103,51 @@ jobs:
       - name: Build
         run: ${{ inputs.build-command }}
 
-      - name: Create Release Pull Request or Publish
+      # changesets/action (pinned to stable v1.9.0) manages ONLY the "Version
+      # Packages" PR. We deliberately do NOT pass its `publish` input: the action's
+      # publish path runs `changeset publish` (npm publish under the hood), which
+      # does NOT rewrite `workspace:*` ranges. We publish in a shell step below with
+      # Yarn instead, which rewrites those ranges at pack time.
+      - name: Create Release Pull Request
         id: changesets
-        uses: changesets/action@v2.0.0-next.3
+        uses: changesets/action@v1.9.0
         with:
-          version-script: ${{ inputs.version-script }}
-          publish-script: ${{ inputs.publish-script }}
-          setup-git-user: ${{ inputs.setup-git-user }}
-          create-github-releases: ${{ inputs.create-github-releases }}
-          push-git-tags: ${{ inputs.push-git-tags }}
+          version: ${{ inputs.version-script }}
+          setupGitUser: ${{ inputs.setup-git-user }}
           github-token: ${{ inputs.github-token || github.token }}
         env:
           GITHUB_TOKEN: ${{ inputs.github-token || github.token }}
-          NPM_TOKEN: ${{ secrets.npm-token }}
           NODE_AUTH_TOKEN: ${{ secrets.packages-token || github.token }}
+
+      # Everything below runs only once the Version PR has merged (no changesets
+      # remain). `hasChangesets` is exposed by changesets/action precisely so
+      # consumers can drive their own publishing.
+      - name: Publish packages (Yarn rewrites workspace ranges)
+        if: steps.changesets.outputs.hasChangesets == 'false'
+        run: ${{ inputs.publish-script }}
+        env:
+          NODE_AUTH_TOKEN: ${{ secrets.packages-token || github.token }}
+          NPM_TOKEN: ${{ secrets.npm-token }}
+
+      - name: Tag and push
+        if: steps.changesets.outputs.hasChangesets == 'false' && inputs.push-git-tags
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          yarn changeset tag
+          git push --tags
+        env:
+          NODE_AUTH_TOKEN: ${{ secrets.packages-token || github.token }}
+
+      - name: Create GitHub releases
+        if: steps.changesets.outputs.hasChangesets == 'false' && inputs.create-github-releases
+        run: |
+          for tag in $(git tag --points-at HEAD); do
+            if gh release view "$tag" >/dev/null 2>&1; then
+              echo "release $tag already exists, skipping"
+            else
+              gh release create "$tag" --title "$tag" --generate-notes
+            fi
+          done
+        env:
+          GH_TOKEN: ${{ inputs.github-token || github.token }}
